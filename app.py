@@ -1,43 +1,76 @@
+from flask import Flask
 import csv
-import requests
-from requests.structures import CaseInsensitiveDict
+from load import create_tables_load_data
 
-def etl():
-    # Load CSV files
-    # Process files to derive features
-    # Upload processed data into a database
+app = Flask(__name__)
+
+def get_most_commonly_experimented_compound(user_experiments_table):
     compounds_file = 'data/compounds.csv'
-    user_experiements_file = 'data/user_experiments.csv'
-    users_file = 'data/users.csv'
     compounds_table = []
-    user_experiements_table = []
-    users_table = []
+
     with open(compounds_file) as csvfile:
         reader = csv.reader(csvfile, delimiter='\t')
         for row in reader:
-            compounds_table.append(row)
+            if row:
+                compounds_table.append(row)
     csvfile.close()
-    with open(user_experiements_file) as csvfile:
-        reader = csv.reader(csvfile, delimiter='\t')
-        for row in reader:
-            user_experiements_table.append(row)
-    csvfile.close()
+
+    experimented_compound = {}
+    compound_id_name_map = {}
+
+    for row in compounds_table[1:]:
+        compound_id = int(row[0].rstrip(','))
+        compound_name = row[1].rstrip(',')
+        experimented_compound[compound_id] = 0
+        compound_id_name_map[compound_id] = compound_name
+
+    for row in user_experiments_table[1:]:
+        compounds_ids = row[2].rstrip(',').split(';')
+        for id in compounds_ids:
+            experimented_compound[int(id)] = experimented_compound[int(id)] + int(row[3])
+
+    max_experiment_runtime = 0
+    result_compound = ''
+
+    for compound in experimented_compound:
+        if experimented_compound[compound] > max_experiment_runtime:
+            max_experiment_runtime = experimented_compound[compound]
+            result_compound = compound_id_name_map[compound]
+
+    return result_compound
+
+def get_total_experiments_per_user():
+    user_experiements_file = 'data/user_experiments.csv'
+    users_file = 'data/users.csv'
+    user_experiements_table = []
+    users_table = []
+
     with open(users_file) as csvfile:
         reader = csv.reader(csvfile, delimiter='\t')
         for row in reader:
-            users_table.append(row)
+            if row:
+                users_table.append(row)
     csvfile.close()
-    
+
+    with open(user_experiements_file) as csvfile:
+        reader = csv.reader(csvfile, delimiter='\t')
+        for row in reader:
+            if row:
+                user_experiements_table.append(row)
+    csvfile.close()
+
     total_experiements = {}
-    experiemented_compound = {}
+    for row in users_table[1:]:
+        user_id = int(row[0].rstrip(','))
+        total_experiements[user_id] = 0
 
     for row in user_experiements_table[1:]:
-        user_id = row[1].rstrip(',')
-        if user_id not in total_experiements:
-            total_experiements[user_id] = int(row[3])
-        else:
-            total_experiements[user_id] = total_experiements[user_id] + int(row[3])
-    
+        user_id = int(row[1].rstrip(','))
+        total_experiements[user_id] = total_experiements[user_id] + int(row[3])
+
+    return total_experiements, user_experiements_table
+
+def get_average_experiments(total_experiements):
     sum = 0
     user_count = 0
     for user in total_experiements:
@@ -45,33 +78,29 @@ def etl():
         sum = sum + total_experiements[user]
     average_experiments = sum / user_count
 
-    for row in user_experiements_table[1:]:
-        compounds = row[2].rstrip(',').split(';')
-        for compound in compounds:
-            if int(compound) not in experiemented_compound:
-                experiemented_compound[int(compound)] = int(row[3])
-            else:
-                experiemented_compound[int(compound)] = experiemented_compound[int(compound)] + int(row[3])
-    max_experiment_runtime = 0
-    result_compound = 0
-    for compound in experiemented_compound:
-        if experiemented_compound[compound] > max_experiment_runtime:
-            max_experiment_runtime = experiemented_compound[compound]
-            result_compound = compound
+    return average_experiments
     
-    return [total_experiements], average_experiments, result_compound
+
+def etl():
+    # Load CSV files
+    # Process files to derive features
+    # Upload processed data into a database
+    total_experiements, user_experiements_table = get_total_experiments_per_user()
+    result_compound = get_most_commonly_experimented_compound(user_experiements_table)
+    average_experiments = get_average_experiments(total_experiements)
+
+    total_experiements_tup = []
+
+    for user in total_experiements:
+        total_experiements_tup.append((user, total_experiements[user]))
+    
+    return total_experiements_tup, average_experiments, result_compound
 
 # Your API that can be called to trigger your ETL process
+@app.route("/")
 def trigger_etl():
     # Trigger your ETL process here
-    [total_experiements], average_experiments, result_compound = etl()
-    url = "https://reqbin.com/echo/post/json"
-
-    headers = CaseInsensitiveDict()
-    headers["Content-Type"] = "application/json"
-
-    data = {'total_experiements': [total_experiements], 'average_experiments': average_experiments, 'result_compound': result_compound}
-
-
-    response = requests.post(url, headers=headers, data=data)
-    return {"message": "ETL process started"}, response.status_code
+    total_experiements, average_experiments, result_compound = etl()
+    create_tables_load_data([total_experiements, average_experiments, result_compound])
+    
+    return {"message": "ETL process started"}, 200
