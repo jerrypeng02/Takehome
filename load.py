@@ -1,21 +1,5 @@
 import psycopg2
 
-# def connect():
-#     conn = None
-#     try:
-#         conn = psycopg2.connect(host="localhost",
-#                                 database="takehomedb",
-#                                 user="ningyangpeng",
-#                                 password="")
-#         cursor = conn.cursor()
-#         cursor.close()
-#     except (Exception, psycopg2.DatabaseError) as error:
-#         print(error)
-#     finally:
-#         if conn is not None:
-#             conn.close()
-#             print('Database connection closed.')
-
 def create_tables_load_data(data):
     commands = (
         """
@@ -38,9 +22,10 @@ def create_tables_load_data(data):
 
     conn = None
     try:
+        print('Connecting database.')
         conn = psycopg2.connect(host="localhost",
                                 database="takehomedb",
-                                user="ningyangpeng",
+                                user="user",
                                 password="")
         cursor = conn.cursor()
 
@@ -67,8 +52,3 @@ def create_tables_load_data(data):
         if conn is not None:
             conn.close()
             print('Database connection closed.')
-
-# if __name__ == '__main__':
-#     # connect()
-#     data = [[(1, 10), (2, 30), (3, 20)], 38.5, 'Compound A']
-#     create_tables_load_data(data)

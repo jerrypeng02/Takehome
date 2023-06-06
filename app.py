@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 import csv
 from load import create_tables_load_data
 
@@ -101,6 +101,7 @@ def etl():
 def trigger_etl():
     # Trigger your ETL process here
     total_experiements, average_experiments, result_compound = etl()
-    create_tables_load_data([total_experiements, average_experiments, result_compound])
+    data = [total_experiements, average_experiments, result_compound]
+    create_tables_load_data(data)
     
-    return {"message": "ETL process started"}, 200
+    return jsonify(data), 200
