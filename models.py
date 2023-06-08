@@ -4,8 +4,7 @@ db = SQLAlchemy()
 
 class Total_Experiments(db.Model):
   __tablename__ = 'total_experiments'
-  id = db.Column(db.Integer, primary_key=True)
-  user_id = db.Column(db.Integer, unique=True, nullable=False)
+  user_id = db.Column(db.Integer, unique=True, nullable=False, primary_key=True)
   number_of_experiments = db.Column(db.Integer, nullable=False)
 
 class Average_Experiments(db.Model):

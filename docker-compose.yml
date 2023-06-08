@@ -4,6 +4,7 @@ services:
   takehome_app:
     container_name: takehome_app
     image: takehome
+    restart: on-failure
     build:
       context: .
       dockerfile: ./Dockerfile
