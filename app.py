@@ -1,8 +1,10 @@
-from flask import Flask, jsonify
+from flask import request, jsonify, make_response
 import csv
-from load import create_tables_load_data
 
-app = Flask(__name__)
+from init import create_app
+from models import db, Total_Experiments, Average_Experiments, Most_Commonly_Experimented_Compound
+
+app = create_app()
 
 def get_most_commonly_experimented_compound(user_experiments_table):
     compounds_file = 'data/compounds.csv'
@@ -97,11 +99,25 @@ def etl():
     return total_experiements_tup, average_experiments, result_compound
 
 # Your API that can be called to trigger your ETL process
-@app.route("/")
+@app.route('/empty', methods=['GET'])
+def empty_page():
+    return make_response(jsonify({'message': 'empty page'}), 200)
+
+@app.route('/etl', methods=['POST'])
 def trigger_etl():
     # Trigger your ETL process here
+    body = request.get_json()
+    print('Start ETL process')
     total_experiements, average_experiments, result_compound = etl()
-    data = [total_experiements, average_experiments, result_compound]
-    create_tables_load_data(data)
+    for experiment in total_experiements:
+        db.session.add(Total_Experiments(user_id=experiment[0], number_of_experiments=experiment[1]))
+        db.session.commit()
     
-    return jsonify(data), 200
+    db.session.add(Average_Experiments(average_experiments))
+    db.session.commit()
+
+    db.session.add(Most_Commonly_Experimented_Compound(result_compound))
+    db.session.commit()
+
+    print('End of ETL process')
+    return make_response(jsonify({'message': 'successfully processed etl', 'input_json': body}), 201)

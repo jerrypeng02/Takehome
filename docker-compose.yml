@@ -1,0 +1,31 @@
+version: '3.4'
+
+services:
+  takehome_app:
+    container_name: takehome_app
+    image: takehome
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - 4000:4000
+    environment:
+      - FLASK_APP=app.py
+      - DATABASE_URL=postgresql://postgres:postgres@takehome_db:5432/takehomedb
+    depends_on:
+      - takehome_db
+  
+  takehome_db:
+    container_name: takehome_db
+    image: postgres:10
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=takehomedb
+    volumes:
+      - pgdata:/var/lib/postgresql/data/
+  
+volumes:
+  pgdata:
